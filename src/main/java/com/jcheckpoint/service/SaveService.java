@@ -13,20 +13,19 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
 public class SaveService {
 
-    @Value("${checkpoint.save-path}") // inject config file properties
+    @Value("${checkpoint.save-path}") // inject config file properties into savePath
     private String savePath;
-
 
     /**
      * List all save files found in configured directory
-     *
-     * @return mapped SaveState object list
+     * @return  mapped SaveState object list
      */
     public List<SaveState> listAllSaves() {
         Path path = Paths.get(savePath);
@@ -38,8 +37,8 @@ public class SaveService {
 
         try (Stream<Path> stream = Files.list(path)) {
             return stream
-                    .filter(Files::isRegularFile)          // only files, ignore folders
-                    .map(this::mapToSaveState) // turn Path into SaveState
+                    .filter(p -> Files.isRegularFile(p)) // only files, ignore folders
+                    .map(p -> mapToSaveState(p)) // turn Path into SaveState
                     .collect(Collectors.toList());
         } catch (IOException e) {
             throw new RuntimeException("Erro ao ler arquivos de save", e);
@@ -48,7 +47,16 @@ public class SaveService {
 
     private SaveState mapToSaveState(Path path) {
         try {
-            var fileAttributes = Files.readAttributes(path, "basic:lastModifiedTime,size");
+            /**
+             * readAttributes asks for two parameters:
+             * 1. path: The object rerpesenting the files location on the HD.
+             * In this case, the `path` comes from the Stream that iterates through the saves folder.
+             *
+             * 2. "lastModifiedTime,size": A String parameter list containing the exact attributes names we need to,
+             * separated by comma.
+             */
+            Map<String, Object> fileAttributes = Files.readAttributes(path, "lastModifiedTime,size");
+
             long size = (long) fileAttributes.get("size");
 
             long millis = ((FileTime) fileAttributes.get("lastModifiedTime")).toMillis();
@@ -66,8 +74,16 @@ public class SaveService {
         }
     }
 
+    /**
+     * Since SO tipically treat extension as part of the file name rather than
+     * a separate attribute, this helper method extract the extension (everything after the last dot)
+     * and return as a String.
+     *
+     * @param fileName
+     * @return {@code the file extension}
+     */
     private String getFileExtension(String fileName) {
-        int lastIndex = fileName.lastIndexOf('.');
+        int lastIndex = fileName.lastIndexOf('.'); // return -1 if the char does not occur
         return (lastIndex == -1) ? "" : fileName.substring(lastIndex + 1);
     }
 }
