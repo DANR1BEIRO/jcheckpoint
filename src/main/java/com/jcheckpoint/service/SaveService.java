@@ -1,13 +1,14 @@
 package com.jcheckpoint.service;
 
 import com.jcheckpoint.model.SaveState;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -18,21 +19,20 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
+@Slf4j
 public class SaveService {
-
-    @Value("${checkpoint.save-path}") // inject config file properties into savePath
-    private String savePath;
 
     /**
      * List all save files found in configured directory
-     * @return  mapped SaveState object list
+     *
+     * @return mapped SaveState object list
      */
-    public List<SaveState> listAllSaves() {
-        Path path = Paths.get(savePath);
+    public List<SaveState> listAllSaves(String directoryPath) {
+        Path path = Paths.get(directoryPath);
 
         // checks whether directory exists or not
         if (!Files.exists(path) || !Files.isDirectory(path)) {
-            throw new RuntimeException("Save directory not found: " + savePath);
+            return List.of();
         }
 
         try (Stream<Path> stream = Files.list(path)) {
@@ -41,7 +41,7 @@ public class SaveService {
                     .map(p -> mapToSaveState(p)) // turn Path into SaveState
                     .collect(Collectors.toList());
         } catch (IOException e) {
-            throw new RuntimeException("Erro ao ler arquivos de save", e);
+            throw new RuntimeException("Error reading save files", e);
         }
     }
 
@@ -85,5 +85,16 @@ public class SaveService {
     private String getFileExtension(String fileName) {
         int lastIndex = fileName.lastIndexOf('.'); // return -1 if the char does not occur
         return (lastIndex == -1) ? "" : fileName.substring(lastIndex + 1);
+    }
+
+    public void replaceFile(Path source, Path target) {
+
+        try {
+            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+            log.info("success: File copied from {} to {}", source, target);
+        } catch (IOException e) {
+            log.error("Critical error copying file: {}", source.getFileName());
+            throw new RuntimeException("Error processing copy", e);
+        }
     }
 }
