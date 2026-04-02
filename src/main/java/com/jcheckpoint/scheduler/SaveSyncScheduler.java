@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @Component
@@ -26,8 +28,11 @@ public class SaveSyncScheduler {
     @Scheduled(fixedDelay = 5000)
     public void runSyncTask() {
 
-        List<SaveState> localSaves = saveService.listAllSaves(localPath);
-        List<SaveState> externalSaves = saveService.listAllSaves(externalPath);
+        Path localDirectory = Paths.get(localPath);
+        Path externalDirectory = Paths.get(externalPath);
+
+        List<SaveState> localSaves = saveService.listAllSaves(localDirectory);
+        List<SaveState> externalSaves = saveService.listAllSaves(externalDirectory);
 
         syncService.compareAndSync(localSaves, externalSaves, localPath, externalPath);
     }
