@@ -24,11 +24,9 @@ public class SaveService {
 
     /**
      * List all save files found in configured directory
-     *
      * @return mapped SaveState object list
      */
-    public List<SaveState> listAllSaves(String directoryPath) {
-        Path path = Paths.get(directoryPath);
+    public List<SaveState> listAllSaves(Path path) {
 
         // checks whether directory exists or not
         if (!Files.exists(path) || !Files.isDirectory(path)) {
