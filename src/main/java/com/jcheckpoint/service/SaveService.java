@@ -1,5 +1,6 @@
 package com.jcheckpoint.service;
 
+import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -7,7 +8,6 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
@@ -22,15 +22,10 @@ import java.util.stream.Stream;
 @Slf4j
 public class SaveService {
 
-    /**
-     * List all save files found in configured directory
-     * @return mapped SaveState object list
-     */
     public List<SaveState> listAllSaves(Path path) {
 
-        // checks whether directory exists or not
         if (!Files.exists(path) || !Files.isDirectory(path)) {
-            return List.of();
+            throw new SaveSyncException("Directory does not exist or is inaccessible: " + path);
         }
 
         try (Stream<Path> stream = Files.list(path)) {
@@ -39,7 +34,7 @@ public class SaveService {
                     .map(p -> mapToSaveState(p)) // turn Path into SaveState
                     .collect(Collectors.toList());
         } catch (IOException e) {
-            throw new RuntimeException("Error reading save files", e);
+            throw new SaveSyncException("Could not read files from directory: " + path, e);
         }
     }
 
@@ -68,7 +63,7 @@ public class SaveService {
                     .lastModified(lastModified)
                     .build();
         } catch (IOException e) {
-            throw new RuntimeException("Error mapping file: " + path.getFileName());
+            throw new SaveSyncException("Error extracting metadata from file: " + path.getFileName(), e);
         }
     }
 
@@ -92,7 +87,7 @@ public class SaveService {
             log.info("success: File copied from {} to {}", source, target);
         } catch (IOException e) {
             log.error("Critical error copying file: {}", source.getFileName());
-            throw new RuntimeException("Error processing copy", e);
+            throw new SaveSyncException("Failed to replace save file: " + source.getFileName(), e);
         }
     }
 }

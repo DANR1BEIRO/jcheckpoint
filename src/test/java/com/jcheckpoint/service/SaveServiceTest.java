@@ -2,6 +2,7 @@ package com.jcheckpoint.service;
 
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
+import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SaveServiceTest {
 
@@ -52,12 +54,13 @@ class SaveServiceTest {
     }
 
     @Test
-    @DisplayName("Should return an empty list when directory does not exist")
-    void shouldReturnEmptyListWhenDirectoryDoesNotExist() {
+    @DisplayName("Should return an empty list when directory is empty")
+    void shouldReturnEmptyListWhenDirectoryIsEmpty() throws IOException {
 
-        Path invalidPath = fileSystem.getPath("fake/invalid");
+        Path emptyDirectory = fileSystem.getPath("fake/empty");
+        Files.createDirectories(emptyDirectory);
 
-        List<SaveState> result = service.listAllSaves(invalidPath);
+        List<SaveState> result = service.listAllSaves(emptyDirectory);
 
         assertThat(result).isEmpty();
     }
@@ -151,4 +154,45 @@ class SaveServiceTest {
 
         assertThat(Files.readString(chronoTriggerOldData)).isEqualTo("new data");
     }
+
+    @Test
+    @DisplayName("Should throw SaveSyncException when directory is invalid or does not exist")
+    void shouldThrowSaveSyncExceptionWhenDirectoryIsInvalidOrDoesNotExist() {
+        Path invalidDirectory = fileSystem.getPath("invalid/path");
+
+        SaveSyncException expectedException = assertThrows(
+                SaveSyncException.class,
+                () -> service.listAllSaves(invalidDirectory));
+
+        assertThat(expectedException.getMessage())
+                .isEqualTo("Directory does not exist or is inaccessible: " + invalidDirectory);
+    }
+
+    @Test
+    @DisplayName("Should throw SaveSyncException when replace fails (source doesn't exist)")
+    void shouldThrowSaveSyncExceptionWhenReplaceFails() {
+        Path source = fileSystem.getPath("path/chrono_trigger.srm");
+        Path target = fileSystem.getPath("path/chrono_trigger.srm");
+
+        SaveSyncException expectedException = assertThrows(
+                SaveSyncException.class,
+                () -> service.replaceFile(source, target));
+
+        assertThat(expectedException.getCause())
+                .isInstanceOf(IOException.class);
+
+        assertThat(expectedException.getMessage())
+                .isEqualTo("Failed to replace save file: " + source.getFileName());
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
