@@ -1,7 +1,7 @@
 package com.jcheckpoint.scheduler;
 
 import com.jcheckpoint.model.SaveState;
-import com.jcheckpoint.service.LocalStorageService;
+import com.jcheckpoint.service.StorageService;
 import com.jcheckpoint.service.SyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SaveSyncScheduler {
 
-    private final LocalStorageService saveService;
+    private final StorageService storageService;
     private final SyncService syncService;
 
     @Value("${checkpoint.path.local}")
@@ -31,8 +31,8 @@ public class SaveSyncScheduler {
         Path localDirectory = Paths.get(localPath);
         Path externalDirectory = Paths.get(externalPath);
 
-        List<SaveState> localSaves = saveService.listAllSaves(localDirectory);
-        List<SaveState> externalSaves = saveService.listAllSaves(externalDirectory);
+        List<SaveState> localSaves = storageService.listAllSaves(localDirectory);
+        List<SaveState> externalSaves = storageService.listAllSaves(externalDirectory);
 
         syncService.compareAndSync(localSaves, externalSaves, localPath, externalPath);
     }

@@ -3,6 +3,7 @@ package com.jcheckpoint.service;
 import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +22,7 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
-@Primary
+@ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalStorageService implements StorageService {
 
     public List<SaveState> listAllSaves(Path path) {
@@ -93,3 +94,5 @@ public class LocalStorageService implements StorageService {
         }
     }
 }
+
+
