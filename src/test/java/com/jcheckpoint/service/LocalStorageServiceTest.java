@@ -18,10 +18,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class SaveServiceTest {
+class LocalStorageServiceTest {
 
     private FileSystem fileSystem;
-    private SaveService service;
+    private StorageService service;
     private Path path;
 
     /**
@@ -39,7 +39,7 @@ class SaveServiceTest {
         path = fileSystem.getPath("/fake/save");
         Files.createDirectories(path);
 
-        service = new SaveService();
+        service = new LocalStorageService();
     }
 
     /**

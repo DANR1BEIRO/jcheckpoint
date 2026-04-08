@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SyncService {
 
-    private final SaveService service;
+    private final StorageService storageService;
 
     public void compareAndSync(List<SaveState> localSave, List<SaveState> externalSave, String localPath, String externalPath) {
         if (localSave.isEmpty() && externalSave.isEmpty()) {
@@ -37,17 +37,17 @@ public class SyncService {
             if (remoteSave != null) {
                 if (localFile.getLastModified().isAfter(remoteSave.getLastModified())) {
                     log.info("pc version is newer: {}", localFile.getFileName());
-                    service.replaceFile(Paths.get(localFile.getAbsolutePath()), Paths.get(remoteSave.getAbsolutePath()));
+                    storageService.replaceFile(Paths.get(localFile.getAbsolutePath()), Paths.get(remoteSave.getAbsolutePath()));
                 }
 
                 if (remoteSave.getLastModified().isAfter(localFile.getLastModified())) {
                     log.info("Trimui version is newer: {}", remoteSave.getFileName());
-                    service.replaceFile(Paths.get(remoteSave.getAbsolutePath()), Paths.get(localFile.getAbsolutePath()));
+                    storageService.replaceFile(Paths.get(remoteSave.getAbsolutePath()), Paths.get(localFile.getAbsolutePath()));
                 }
             } else {
                 log.info("New save found on PC: {}. Sending to Trimui", localFile.getFileName());
                 Path destination = Paths.get(externalPath, localFile.getFileName());
-                service.replaceFile(Paths.get(localFile.getAbsolutePath()), destination);
+                storageService.replaceFile(Paths.get(localFile.getAbsolutePath()), destination);
             }
         });
 
@@ -59,7 +59,7 @@ public class SyncService {
             if (!localFileNames.contains(remoteFile.getFileName())) {
                 log.info("New save found on trimui: {}. Copying to PC", remoteFile.getFileName());
                 Path destination = Paths.get(localPath, remoteFile.getFileName());
-                service.replaceFile(Paths.get(remoteFile.getAbsolutePath()), destination);
+                storageService.replaceFile(Paths.get(remoteFile.getAbsolutePath()), destination);
             }
         });
     }

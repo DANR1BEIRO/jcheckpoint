@@ -1,7 +1,7 @@
 package com.jcheckpoint.scheduler;
 
 import com.jcheckpoint.model.SaveState;
-import com.jcheckpoint.service.SaveService;
+import com.jcheckpoint.service.LocalStorageService;
 import com.jcheckpoint.service.SyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SaveSyncScheduler {
 
-    private final SaveService saveService;
+    private final LocalStorageService saveService;
     private final SyncService syncService;
 
     @Value("${checkpoint.path.local}")

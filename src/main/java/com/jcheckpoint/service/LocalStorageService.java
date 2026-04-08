@@ -3,6 +3,7 @@ package com.jcheckpoint.service;
 import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -20,7 +21,8 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
-public class SaveService {
+@Primary
+public class LocalStorageService implements StorageService {
 
     public List<SaveState> listAllSaves(Path path) {
 
