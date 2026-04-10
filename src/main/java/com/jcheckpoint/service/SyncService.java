@@ -28,8 +28,13 @@ public class SyncService {
         // creates the external "index"
         Map<String, SaveState> externalMap = externalSave.stream()
                 .collect(Collectors.toMap(
-                        fileName -> fileName.getFileName(),
-                        save -> save));
+                        SaveState::getFileName,
+                        save -> save,
+                        (existing, replacement) -> {
+                            return existing.getLastModified().isAfter(replacement.getLastModified()) ? existing : replacement;
+                        }
+                ));
+
 
         localSave.forEach(localFile -> {
             SaveState remoteSave = externalMap.get(localFile.getFileName());

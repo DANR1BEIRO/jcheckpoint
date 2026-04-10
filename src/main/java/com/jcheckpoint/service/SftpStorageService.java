@@ -11,7 +11,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -25,93 +24,95 @@ import java.util.List;
 public class SftpStorageService implements StorageService {
 
     @Value("${app.trimui.ip}")
-    private String host;
+    private String remoteHost;
 
     @Value("${app.trimui.user}")
-    private String userName;
+    private String remoteUser;
 
     @Value("${app.trimui.password}")
-    private String password;
+    private String remotePassword;
 
     @Value("${app.trimui.save-path}")
     private String remoteSavePath;
 
-    private SSHClient connect() throws IOException {
-        SSHClient ssh = new SSHClient();
+    @Value("${app.trimui.port:2022}")
+    private int remotePort;
 
+    private SSHClient createConnectedClient() throws IOException {
+        SSHClient ssh = new SSHClient();
         ssh.addHostKeyVerifier(new PromiscuousVerifier());
 
-        log.info("Trying connecting to Trimui via SSH with the IP {} in port 2022 ", host);
-        ssh.connect(host, 2022);
+        log.info("Connecting to Trimui at {}:{}", remoteHost, remotePort);
+        ssh.connect(remoteHost, remotePort);
+        ssh.authPassword(remoteUser, remotePassword);
 
-        ssh.authPassword(userName, password);
-
-        log.info("Successful SSH connection!");
         return ssh;
     }
 
+    private boolean isSaveFile(String name) {
+        String lowerName = name.toLowerCase();
+        return lowerName.endsWith(".srm") || lowerName.endsWith(".gba") || lowerName.endsWith(".state");
+    }
 
     @Override
-    public List<SaveState> listAllSaves(Path ignoreThisPath) {
-
+    public List<SaveState> listAllSaves(Path path) {
         List<SaveState> saves = new ArrayList<>();
 
-        try (SSHClient ssh = connect();
-             SFTPClient sftp = ssh.newSFTPClient()) {
-
-            log.info("Reading remote folder files: {}", remoteSavePath);
-            List<RemoteResourceInfo> remoteFiles = sftp.ls(remoteSavePath);
-
-            for (RemoteResourceInfo file : remoteFiles) {
-                if (file.isRegularFile()) {
-
-                    long lastModifiedEpoch = file.getAttributes().getMtime();
-                    LocalDateTime lastModified = LocalDateTime.ofInstant(
-                            Instant.ofEpochSecond(lastModifiedEpoch),
-                            ZoneId.systemDefault()
-                    );
-
-                    SaveState save = SaveState.builder()
-                            .fileName(file.getName())
-                            .sizeInBytes(file.getAttributes().getSize())
-                            .absolutePath(file.getPath())
-                            .lastModified(lastModified)
-                            .build();
-
-                    saves.add(save);
-                }
+        try (SSHClient ssh = createConnectedClient()) {
+            try (SFTPClient sftp = ssh.newSFTPClient()) {
+                log.info("Starting recursive search in: {}", remoteSavePath);
+                recursiveScan(sftp, remoteSavePath, saves);
             }
         } catch (IOException e) {
-            log.error("fail read");
+            log.error("SFTP communication fail: {}", e.getMessage());
         }
         return saves;
     }
 
     @Override
     public void replaceFile(Path source, Path destination) {
-        try (SSHClient ssh = connect();
-             SFTPClient sftpClient = ssh.newSFTPClient()) {
+        log.info("Replacing remote file: {} -> {}", source, destination);
 
-            String sourcePath = source.toString().replace("\\", "/");
-            String destinationPath = destination.toString().replace("\\", "/");
+        try (SSHClient ssh = createConnectedClient()) {
 
-            if (Files.exists(source)) {
-
-                log.info("Uploading from PC to trimui: {} -> {}", sourcePath, destinationPath);
-
-                sftpClient.put(sourcePath, destinationPath);
-
-                log.info("Upload successful!");
-
-            } else {
-                log.info("Downloading from trimui to PC: {} -> {}", sourcePath, destinationPath);
-
-                sftpClient.get(sourcePath, destinationPath);
-
-                log.info("Download successful!");
+            try (SFTPClient sftp = ssh.newSFTPClient()) {
+                sftp.put(source.toString(), destination.toString());
+                log.info("File succcessful replaced on remote destination");
             }
+
         } catch (IOException e) {
-            log.error("SFTP File transfer failed: {}", e.getMessage());
+            log.error("Error during SFTP file replace: {}", e.getMessage());
         }
+    }
+
+    private void recursiveScan(SFTPClient sftp, String currentPath, List<SaveState> foundSaves) throws IOException {
+        List<RemoteResourceInfo> contents = sftp.ls(currentPath);
+
+        for (RemoteResourceInfo item : contents) {
+            String fullPath = currentPath.endsWith("/") ? currentPath + item.getName() : currentPath + "/" + item.getName();
+
+            if (item.isDirectory()) {
+                if (!item.getName().equals(".") && !item.getName().equals("..")) {
+                    recursiveScan(sftp, fullPath, foundSaves);
+                }
+            } else if (isSaveFile(item.getName())) {
+                foundSaves.add(mapToSaveState(item, currentPath));
+            }
+        }
+    }
+
+    private SaveState mapToSaveState(RemoteResourceInfo file, String path) {
+        long lastModifiedEpoch = file.getAttributes().getMtime();
+        LocalDateTime lastModified = LocalDateTime.ofInstant(
+                Instant.ofEpochSecond(lastModifiedEpoch),
+                ZoneId.systemDefault()
+        );
+
+        return SaveState.builder()
+                .fileName(file.getName())
+                .sizeInBytes(file.getAttributes().getSize())
+                .absolutePath(path + "/" + file.getName())
+                .lastModified(lastModified)
+                .build();
     }
 }
