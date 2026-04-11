@@ -23,7 +23,6 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
-@ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
 @RequiredArgsConstructor
 public class LocalStorageService implements StorageService {
 

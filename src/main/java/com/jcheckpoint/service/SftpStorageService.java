@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -73,12 +74,12 @@ public class SftpStorageService implements StorageService {
     }
 
     @Override
-    public void uploadFile(Path localSource, Path remoteDestination) {
-        log.info("Starting upload: {} --> {}", localSource, remoteDestination);
+    public void uploadFile(Path localSource, Path remotePath) {
+        log.info("Starting upload: {} --> {}", localSource, remotePath);
 
         try (SSHClient ssh = createConnectedClient(); SFTPClient sftp = ssh.newSFTPClient()) {
 
-            String remoteDir = remoteDestination.getParent().toString().replace("\\", "/");
+            String remoteDir = remotePath.getParent().toString().replace("\\", "/");
 
             try {
                 sftp.stat(remoteDir);
@@ -87,7 +88,7 @@ public class SftpStorageService implements StorageService {
                 sftp.mkdir(remoteDir);
             }
 
-            sftp.put(localSource.toString(), remoteDestination.toString());
+            sftp.put(localSource.toString(), remotePath.toString());
             log.info("upload successful");
         } catch (IOException e) {
             log.error("Error during SFTP uploading: {}", e.getMessage());
@@ -95,23 +96,29 @@ public class SftpStorageService implements StorageService {
     }
 
     @Override
-    public void downloadFile(Path remoteSource, Path localDestination) {
+    public void downloadFile(Path remoteSource, Path localPath) {
 
-        log.info("Starting download: {} -> {}", remoteSource, localDestination);
+        log.info("Starting download: {} -> {}", remoteSource, localPath);
 
-        try (SSHClient ssh = createConnectedClient(); SFTPClient sftp = ssh.newSFTPClient()) {
+        try {
+            Path localDirectory = localPath.getParent();
+            if (localDirectory != null && !Files.exists(localDirectory)) {
+                Files.createDirectories(localDirectory);
+                log.info("Created local directory: {}", localDirectory);
+            }
 
-            sftp.get(remoteSource.toString(), localDestination.toString());
-            log.info("download successful");
+            try (SSHClient ssh = createConnectedClient(); SFTPClient sftp = ssh.newSFTPClient()) {
+
+                sftp.get(remoteSource.toString(), localPath.toString());
+                log.info("download successful");
+            }
 
         } catch (IOException e) {
             log.error("Error during SFTP downloading: {}", e.getMessage());
         }
-
     }
 
-    private void recursiveScan(SFTPClient sftp, String currentPath, List<SaveState> foundSaves) throws
-            IOException {
+    private void recursiveScan(SFTPClient sftp, String currentPath, List<SaveState> foundSaves) throws IOException {
         List<RemoteResourceInfo> contents = sftp.ls(currentPath);
 
         for (RemoteResourceInfo item : contents) {

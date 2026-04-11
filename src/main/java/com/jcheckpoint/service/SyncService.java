@@ -1,8 +1,8 @@
 package com.jcheckpoint.service;
 
 import com.jcheckpoint.model.SaveState;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
@@ -13,11 +13,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class SyncService {
 
     private final StorageService storageService;
+
+    public SyncService(@Qualifier("sftpStorageService") StorageService storageService) {
+        this.storageService = storageService;
+    }
 
     /**
      * Executes the core bidirectional synchronization logic between the local system and an external device.
@@ -67,7 +70,8 @@ public class SyncService {
                 }
 
             } else {
-                Path destination = Paths.get(externalPath, localSave.getFileName());
+                Path relativePath = getRelativePath(localPath, localSave.getAbsolutePath());
+                Path destination = Paths.get(externalPath).resolve(relativePath);
                 executeUpload(localSave, destination, "PC new save found");
             }
         });
@@ -76,13 +80,22 @@ public class SyncService {
                 .map(s -> s.getFileName())
                 .collect(Collectors.toSet());
 
-        externalSaves.forEach(remoteSave
-                -> {
+        externalSaves.forEach(remoteSave -> {
             if (!localFilesNames.contains(remoteSave.getFileName())) {
-                Path destination = Paths.get(localPath, remoteSave.getFileName());
+
+                Path relativePath = getRelativePath(externalPath, remoteSave.getAbsolutePath());
+
+                Path destination = Paths.get(localPath).resolve(relativePath);
+
                 executeDownload(remoteSave, destination, "Trimui new save found");
             }
         });
+    }
+
+    private Path getRelativePath(String rootPath, String fullPath) {
+        Path root = Paths.get(rootPath);
+        Path full = Paths.get(fullPath);
+        return root.relativize(full);
     }
 
     /**
