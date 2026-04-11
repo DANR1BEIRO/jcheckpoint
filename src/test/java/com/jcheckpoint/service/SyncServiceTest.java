@@ -51,7 +51,7 @@ class SyncServiceTest {
 
         syncService.compareAndSync(pcSaveList, portableSaveList, pcSave.getAbsolutePath(), portableSave.getAbsolutePath());
 
-        Mockito.verify(service, Mockito.times(1)).replaceFile(
+        Mockito.verify(service, Mockito.times(1)).copyFileWithDirectoryCreation(
                 Paths.get(pcSave.getAbsolutePath()),
                 Paths.get(portableSave.getAbsolutePath())
         );
@@ -82,7 +82,7 @@ class SyncServiceTest {
 
         syncService.compareAndSync(pcSaveList, portableSaveList, pcSave.getAbsolutePath(), portableSave.getAbsolutePath());
 
-        Mockito.verify(service, Mockito.times(1)).replaceFile(
+        Mockito.verify(service, Mockito.times(1)).copyFileWithDirectoryCreation(
                 Paths.get(portableSave.getAbsolutePath()),
                 Paths.get(pcSave.getAbsolutePath())
         );
@@ -138,7 +138,7 @@ class SyncServiceTest {
 
 
         Mockito.doThrow(new SaveSyncException("simulate SD card disconnection"))
-                .when(service).replaceFile(
+                .when(service).copyFileWithDirectoryCreation(
                         Paths.get(pcSave.getAbsolutePath()),
                         Paths.get(portableSave.getAbsolutePath())
                 );

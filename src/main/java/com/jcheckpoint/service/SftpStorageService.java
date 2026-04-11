@@ -70,22 +70,45 @@ public class SftpStorageService implements StorageService {
     }
 
     @Override
-    public void replaceFile(Path source, Path destination) {
-        log.info("Replacing remote file: {} -> {}", source, destination);
+    public void uploadFile(Path localSource, Path remoteDestination) {
+        log.info("Starting upload: {} --> {}", localSource, remoteDestination);
 
-        try (SSHClient ssh = createConnectedClient()) {
+        try (SSHClient ssh = createConnectedClient(); SFTPClient sftp = ssh.newSFTPClient()) {
 
-            try (SFTPClient sftp = ssh.newSFTPClient()) {
-                sftp.put(source.toString(), destination.toString());
-                log.info("File succcessful replaced on remote destination");
+            String remoteDir = remoteDestination.getParent().toString().replace("\\", "/");
+
+            try {
+                sftp.stat(remoteDir);
+            } catch (IOException e) {
+                log.info("remote directory doesn't exists. Creating a new one: {}", remoteDir);
+                sftp.mkdir(remoteDir);
             }
 
+            sftp.put(localSource.toString(), remoteDestination.toString());
+            log.info("upload successful");
         } catch (IOException e) {
-            log.error("Error during SFTP file replace: {}", e.getMessage());
+            log.error("Error during SFTP uploading: {}", e.getMessage());
         }
     }
 
-    private void recursiveScan(SFTPClient sftp, String currentPath, List<SaveState> foundSaves) throws IOException {
+    @Override
+    public void downloadFile(Path remoteSource, Path localDestination) {
+
+        log.info("Starting download: {} -> {}", remoteSource, localDestination);
+
+        try (SSHClient ssh = createConnectedClient(); SFTPClient sftp = ssh.newSFTPClient()) {
+
+            sftp.get(remoteSource.toString(), localDestination.toString());
+            log.info("download successful");
+
+        } catch (IOException e) {
+            log.error("Error during SFTP downloading: {}", e.getMessage());
+        }
+
+    }
+
+    private void recursiveScan(SFTPClient sftp, String currentPath, List<SaveState> foundSaves) throws
+            IOException {
         List<RemoteResourceInfo> contents = sftp.ls(currentPath);
 
         for (RemoteResourceInfo item : contents) {

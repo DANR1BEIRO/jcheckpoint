@@ -137,7 +137,7 @@ class LocalStorageServiceTest {
     }
 
     @Test
-    @DisplayName("Should replace existing file content when replaceFile is called")
+    @DisplayName("Should replace existing file content when copyFileWithDirectoryCreation is called")
     void shouldReplaceExistingFile() throws IOException {
 
         Path chronoTriggerNewData = fileSystem.getPath("pc/save/chrono_trigger.srm");
@@ -150,7 +150,7 @@ class LocalStorageServiceTest {
 
         assertThat(chronoTriggerOldData.getFileName()).isEqualTo(chronoTriggerNewData.getFileName());
 
-        service.replaceFile(chronoTriggerNewData, chronoTriggerOldData);
+        service.uploadFile(chronoTriggerNewData, chronoTriggerOldData);
 
         assertThat(Files.readString(chronoTriggerOldData)).isEqualTo("new data");
     }
@@ -176,13 +176,13 @@ class LocalStorageServiceTest {
 
         SaveSyncException expectedException = assertThrows(
                 SaveSyncException.class,
-                () -> service.replaceFile(source, target));
+                () -> service.uploadFile(source, target));
 
         assertThat(expectedException.getCause())
                 .isInstanceOf(IOException.class);
 
         assertThat(expectedException.getMessage())
-                .isEqualTo("Failed to replace save file: " + source.getFileName());
+                .isEqualTo("Failed to copy save file: " + source.getFileName());
     }
 }
 

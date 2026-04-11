@@ -4,7 +4,6 @@ import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -83,14 +82,28 @@ public class LocalStorageService implements StorageService {
         return (lastIndex == -1) ? "" : fileName.substring(lastIndex + 1);
     }
 
-    public void replaceFile(Path source, Path target) {
+    @Override
+    public void uploadFile(Path localSource, Path remoteDestination) {
+        copyFileWithDirectoryCreation(localSource, remoteDestination);
+    }
 
+    @Override
+    public void downloadFile(Path remoteSource, Path localDestination) {
+        copyFileWithDirectoryCreation(remoteSource, localDestination);
+    }
+
+    public void copyFileWithDirectoryCreation(Path source, Path target) {
         try {
+            if (target.getParent() != null && !Files.exists(target.getParent())) {
+                Files.createDirectories(target.getParent());
+                log.info("Create missing directory: {}", target.getParent());
+            }
+
             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
             log.info("success: File copied from {} to {}", source, target);
         } catch (IOException e) {
             log.error("Critical error copying file: {}", source.getFileName());
-            throw new SaveSyncException("Failed to replace save file: " + source.getFileName(), e);
+            throw new SaveSyncException("Failed to copy save file: " + source.getFileName(), e);
         }
     }
 }
