@@ -9,5 +9,5 @@ class JcheckpointApplicationTests {
 	@Test
 	void contextLoads() {
 	}
-
 }
+
