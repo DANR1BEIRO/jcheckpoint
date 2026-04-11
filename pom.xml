@@ -11,8 +11,8 @@
 	<groupId>com.jcheckpoint</groupId>
 	<artifactId>Jcheckpoint</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>JCheckpoint App</name>
+	<description>Save manager application</description>
 	<url/>
 	<licenses>
 		<license/>
