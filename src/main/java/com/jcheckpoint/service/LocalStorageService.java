@@ -93,13 +93,13 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
-    public void uploadFile(Path localSource, Path remoteDestination) {
-        copyFileWithDirectoryCreation(localSource, remoteDestination);
+    public void uploadFile(Path local, Path remote) {
+        copyFileWithDirectoryCreation(local, remote);
     }
 
     @Override
-    public void downloadFile(Path remoteSource, Path localDestination) {
-        copyFileWithDirectoryCreation(remoteSource, localDestination);
+    public void downloadFile(Path remote, Path local) {
+        copyFileWithDirectoryCreation(remote, local);
     }
 
     public void copyFileWithDirectoryCreation(Path source, Path target) {

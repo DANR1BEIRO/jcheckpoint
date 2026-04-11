@@ -2,6 +2,7 @@ package com.jcheckpoint.service;
 
 import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,24 +23,28 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SyncServiceTest {
 
     @Mock // creates a false object
-    LocalStorageService service;
+    StorageService service;
 
     @InjectMocks // injects the false object (mock) into the real service
     SyncService syncService;
 
-    @Test
-    @DisplayName("Should sync from PC to portable when PC save is newer")
-    void shouldSyncFromPCToPortableWhenPCSaveIsNewer() {
+    SaveState localSave;
+    SaveState portableSave;
+    List<SaveState> localSaves;
+    List<SaveState> portableSaves;
 
-        SaveState pcSave = SaveState.builder()
+    @BeforeEach
+    void init() {
+
+        localSave = SaveState.builder()
                 .fileName("Chrono_trigger.srm")
                 .extension("srm")
                 .sizeInBytes(100L)
                 .absolutePath("pc/save/Chrono_trigger.srm")
-                .lastModified(LocalDateTime.now().plusDays(1))
+                .lastModified(LocalDateTime.now())
                 .build();
 
-        SaveState portableSave = SaveState.builder()
+        portableSave = SaveState.builder()
                 .fileName("Chrono_trigger.srm")
                 .extension("srm")
                 .sizeInBytes(100L)
@@ -46,13 +52,20 @@ class SyncServiceTest {
                 .lastModified(LocalDateTime.now())
                 .build();
 
-        List<SaveState> pcSaveList = List.of(pcSave);
-        List<SaveState> portableSaveList = List.of(portableSave);
+        localSaves = new ArrayList<>(List.of(localSave));
+        portableSaves = new ArrayList<>(List.of(portableSave));
 
-        syncService.compareAndSync(pcSaveList, portableSaveList, pcSave.getAbsolutePath(), portableSave.getAbsolutePath());
+    }
 
-        Mockito.verify(service, Mockito.times(1)).copyFileWithDirectoryCreation(
-                Paths.get(pcSave.getAbsolutePath()),
+    @Test
+    @DisplayName("Should sync from PC to portable when PC save is newer")
+    void shouldSyncFromPCToPortableWhenPCSaveIsNewer() {
+
+        localSave.setLastModified(LocalDateTime.now().plusDays(1));
+        syncService.compareAndSync(localSaves, portableSaves, localSave.getAbsolutePath(), portableSave.getAbsolutePath());
+
+        Mockito.verify(service, Mockito.times(1)).uploadFile(
+                Paths.get(localSave.getAbsolutePath()),
                 Paths.get(portableSave.getAbsolutePath())
         );
     }
@@ -61,59 +74,25 @@ class SyncServiceTest {
     @DisplayName("Should sync from portable to PC when portable save is newer")
     void shouldSyncFromPortableToPCWhenPortableSaveIsNewer() {
 
-        SaveState pcSave = SaveState.builder()
-                .fileName("Chrono_trigger.srm")
-                .extension("srm")
-                .sizeInBytes(100L)
-                .absolutePath("pc/save/Chrono_trigger.srm")
-                .lastModified(LocalDateTime.now())
-                .build();
+        portableSave.setLastModified(LocalDateTime.now().plusDays(1));
+        syncService.compareAndSync(localSaves, portableSaves, localSave.getAbsolutePath(), portableSave.getAbsolutePath());
 
-        SaveState portableSave = SaveState.builder()
-                .fileName("Chrono_trigger.srm")
-                .extension("srm")
-                .sizeInBytes(100L)
-                .absolutePath("portable/save/Chrono_trigger.srm")
-                .lastModified(LocalDateTime.now().plusDays(1))
-                .build();
-
-        List<SaveState> pcSaveList = List.of(pcSave);
-        List<SaveState> portableSaveList = List.of(portableSave);
-
-        syncService.compareAndSync(pcSaveList, portableSaveList, pcSave.getAbsolutePath(), portableSave.getAbsolutePath());
-
-        Mockito.verify(service, Mockito.times(1)).copyFileWithDirectoryCreation(
+        Mockito.verify(service, Mockito.times(1)).downloadFile(
                 Paths.get(portableSave.getAbsolutePath()),
-                Paths.get(pcSave.getAbsolutePath())
+                Paths.get(localSave.getAbsolutePath())
         );
     }
 
     @Test
-    @DisplayName("Should not trigger any operation when both saves have the same last modifffied")
+    @DisplayName("Should not trigger any operation when both saves have the same last modified")
     void shouldNotTriggerAnyOperationWhenBothSavesHaveTheSameLastModified() {
 
-        LocalDateTime exactlyTheSameTime = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
 
-        SaveState pcSave = SaveState.builder()
-                .fileName("Chrono_trigger.srm")
-                .extension("srm")
-                .sizeInBytes(100L)
-                .absolutePath("pc/save/Chrono_trigger.srm")
-                .lastModified(exactlyTheSameTime)
-                .build();
+        localSave.setLastModified(now);
+        portableSave.setLastModified(now);
 
-        SaveState portableSave = SaveState.builder()
-                .fileName("Chrono_trigger.srm")
-                .extension("srm")
-                .sizeInBytes(100L)
-                .absolutePath("portable/save/Chrono_trigger.srm")
-                .lastModified(exactlyTheSameTime)
-                .build();
-
-        List<SaveState> pcSaveList = List.of(pcSave);
-        List<SaveState> portableSaveList = List.of(portableSave);
-
-        syncService.compareAndSync(pcSaveList, portableSaveList, pcSave.getAbsolutePath(), portableSave.getAbsolutePath());
+        syncService.compareAndSync(localSaves, portableSaves, localSave.getAbsolutePath(), portableSave.getAbsolutePath());
 
         Mockito.verifyNoInteractions(service);
     }
@@ -121,34 +100,23 @@ class SyncServiceTest {
     @Test
     @DisplayName("Should throw SaveSyncException when file replacement fail")
     void shouldThrowSaveSyncExceptionWhenFileReplacementFail() {
-        SaveState pcSave = SaveState.builder()
-                .fileName("Chrono_trigger.srm")
-                .extension("srm").sizeInBytes(100L)
-                .absolutePath("pc/save/Chrono_trigger.srm")
-                .lastModified(LocalDateTime.now().plusDays(1))
-                .build();
 
-        SaveState portableSave = SaveState.builder()
-                .fileName("Chrono_trigger.srm")
-                .extension("srm")
-                .sizeInBytes(100L)
-                .absolutePath("portable/save/Chrono_trigger.srm")
-                .lastModified(LocalDateTime.now())
-                .build();
-
+        localSave.setLastModified(LocalDateTime.now().plusDays(10));
 
         Mockito.doThrow(new SaveSyncException("simulate SD card disconnection"))
-                .when(service).copyFileWithDirectoryCreation(
-                        Paths.get(pcSave.getAbsolutePath()),
+                .when(service).uploadFile(
+                        Paths.get(localSave.getAbsolutePath()),
                         Paths.get(portableSave.getAbsolutePath())
                 );
 
         SaveSyncException exception = assertThrows(
                 SaveSyncException.class,
-                () -> syncService.compareAndSync(List.of(pcSave), List.of(portableSave), pcSave.getAbsolutePath(), portableSave.getAbsolutePath()));
+                () -> syncService.compareAndSync(
+                        localSaves,
+                        portableSaves,
+                        localSave.getAbsolutePath(),
+                        portableSave.getAbsolutePath()));
 
         assertThat(exception.getMessage()).isEqualTo("simulate SD card disconnection");
     }
-
-
 }
