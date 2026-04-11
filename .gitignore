@@ -35,3 +35,6 @@ build/
 # Ignore Spring Boot logs
 *.log
 Jcheckpoint.log
+
+# env
+.env
