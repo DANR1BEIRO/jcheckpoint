@@ -24,11 +24,6 @@ class LocalStorageServiceTest {
     private StorageService service;
     private Path path;
 
-    /**
-     * Executes before each test method.
-     * Ensures every test case starts with a fresh service instance
-     * and a clean virtual file system.
-     */
     @BeforeEach
     void setup() throws IOException {
 
@@ -39,13 +34,10 @@ class LocalStorageServiceTest {
         path = fileSystem.getPath("/fake/save");
         Files.createDirectories(path);
 
-        service = new LocalStorageService();
+        List<String> extensions = List.of("srm");
+        service = new LocalStorageService(extensions);
     }
 
-    /**
-     * Executes after each test method.
-     * Properly closes the virtual file system to release allocated RAM.
-     */
     @AfterEach
     void closeVirtualFileSystem() throws IOException {
         if (fileSystem != null) {
@@ -71,19 +63,22 @@ class LocalStorageServiceTest {
 
         // concatenates path "/fake/save" and "chrono_trigger.srm"
         // "/fake/save/chrono_trigger.srm"
-        Path chronoTrigger = path.resolve("chrono_trigger.srm");
+        Path chronoTriggerPath = path.resolve("chrono_trigger.srm");
 
-        // creates the file into Jimfs RAM disc
-        Files.createFile(chronoTrigger);
-        Files.writeString(chronoTrigger, "simulate bytes");
+        Files.createFile(chronoTriggerPath);
 
-        List<SaveState> saveList = service.listAllSaves(path);
-        assertThat(saveList).hasSize(1);
+        List<SaveState> saves = service.listAllSaves(path);
+        assertThat(saves).hasSize(1);
 
-        SaveState chronoTriggerSave = saveList.get(0);
+        SaveState chronoTriggerSave = saves.get(0);
 
-        assertThat(chronoTriggerSave.getExtension()).isEqualTo("srm");
-        assertThat(chronoTriggerSave.getFileName()).isEqualTo("chrono_trigger.srm");
+        assertThat(chronoTriggerSave)
+                .isNotNull()
+                .satisfies(save -> {
+                    assertThat(save.getFileName()).isEqualTo("chrono_trigger.srm");
+                    assertThat(save.getExtension()).isEqualTo("srm");
+                    assertThat(save.getSizeInBytes()).isZero();
+                });
     }
 
     @Test
@@ -96,9 +91,12 @@ class LocalStorageServiceTest {
 
         List<SaveState> saves = service.listAllSaves(path);
 
-        assertThat(saves.size()).isEqualTo(1);
-
-        assertThat(saves.get(0).getFileName()).isEqualTo("chrono_trigger.srm");
+        assertThat(saves)
+                .isNotNull()
+                .satisfies(allSaves -> {
+                    assertThat(allSaves).hasSize(1);
+                    assertThat(allSaves.getFirst().getFileName()).isEqualTo("chrono_trigger.srm");
+                });
     }
 
     @Test
@@ -111,9 +109,15 @@ class LocalStorageServiceTest {
 
         List<SaveState> saves = service.listAllSaves(path);
 
-        assertThat(saves).hasSize(1);
-        assertThat(saves.get(0).getFileName()).isEqualTo("chrono_trigger.tar.srm");
-        assertThat(saves.get(0).getExtension()).isEqualTo("srm");
+        assertThat(saves)
+                .isNotNull()
+                .satisfies(allSaves -> {
+                    assertThat(saves).hasSize(1);
+                    assertThat(saves.getFirst().getFileName()).isEqualTo("chrono_trigger.tar.srm");
+                    assertThat(saves.getFirst().getExtension()).isEqualTo("srm");
+                });
+
+
     }
 
     @Test

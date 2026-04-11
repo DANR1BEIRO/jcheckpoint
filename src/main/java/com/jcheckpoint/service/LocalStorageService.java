@@ -2,6 +2,7 @@ package com.jcheckpoint.service;
 
 import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,10 +24,11 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
+@RequiredArgsConstructor
 public class LocalStorageService implements StorageService {
 
     @Value("#{'${app.trimui.save-extensions}'.split(',')}")
-    List<String> validExtensions;
+    private final List<String> validExtensions;
 
     public List<SaveState> listAllSaves(Path path) {
 
