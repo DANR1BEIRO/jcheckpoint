@@ -3,6 +3,7 @@ package com.jcheckpoint.service;
 import com.jcheckpoint.exception.SaveSyncException;
 import com.jcheckpoint.model.SaveState;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,9 @@ import java.util.stream.Stream;
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalStorageService implements StorageService {
 
+    @Value("#{'${app.trimui.save-extensions}'.split(',')}")
+    List<String> validExtensions;
+
     public List<SaveState> listAllSaves(Path path) {
 
         if (!Files.exists(path) || !Files.isDirectory(path)) {
@@ -33,11 +37,17 @@ public class LocalStorageService implements StorageService {
         try (Stream<Path> stream = Files.list(path)) {
             return stream
                     .filter(p -> Files.isRegularFile(p)) // only files, ignore folders
+                    .filter(this::isSaveFile)
                     .map(p -> mapToSaveState(p)) // turn Path into SaveState
                     .collect(Collectors.toList());
         } catch (IOException e) {
             throw new SaveSyncException("Could not read files from directory: " + path, e);
         }
+    }
+
+    private boolean isSaveFile(Path file) {
+        String save = file.getFileName().toString().toLowerCase();
+        return validExtensions.stream().anyMatch(save::endsWith);
     }
 
     private SaveState mapToSaveState(Path path) {

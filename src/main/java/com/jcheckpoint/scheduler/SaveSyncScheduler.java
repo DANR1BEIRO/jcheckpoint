@@ -19,13 +19,13 @@ public class SaveSyncScheduler {
     private final StorageService storageService;
     private final SyncService syncService;
 
-    @Value("${checkpoint.path.local}")
+    @Value("${app.storage.local.path}")
     private String localPath;
 
-    @Value("${checkpoint.path.external}")
+    @Value("${app.trimui.save-path}")
     private String externalPath;
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 30000)
     public void runSyncTask() {
 
         Path localDirectory = Paths.get(localPath);

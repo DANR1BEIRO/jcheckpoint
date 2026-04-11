@@ -23,6 +23,9 @@ import java.util.List;
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "sftp")
 public class SftpStorageService implements StorageService {
 
+    @Value("#{'${app.trimui.save-extensions}'.split(',')}")
+    List<String> validExtensions;
+
     @Value("${app.trimui.ip}")
     private String remoteHost;
 
@@ -51,7 +54,7 @@ public class SftpStorageService implements StorageService {
 
     private boolean isSaveFile(String name) {
         String lowerName = name.toLowerCase();
-        return lowerName.endsWith(".srm") || lowerName.endsWith(".gba") || lowerName.endsWith(".state");
+        return validExtensions.stream().anyMatch(lowerName::endsWith);
     }
 
     @Override
