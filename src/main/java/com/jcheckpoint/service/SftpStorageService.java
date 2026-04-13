@@ -73,23 +73,36 @@ public class SftpStorageService implements StorageService {
         return saves;
     }
 
+    private void recursiveScan(SFTPClient sftp, String currentPath, List<SaveState> foundSaves) throws IOException {
+        List<RemoteResourceInfo> contents = sftp.ls(currentPath);
+
+        for (RemoteResourceInfo item : contents) {
+            String fullPath = currentPath.endsWith("/") ? currentPath + item.getName() : currentPath + "/" + item.getName();
+
+            if (item.isDirectory()) {
+                if (!item.getName().equals(".") && !item.getName().equals("..")) {
+                    recursiveScan(sftp, fullPath, foundSaves);
+                }
+            } else if (isSaveFile(item.getName())) {
+                foundSaves.add(mapToSaveState(item, currentPath));
+            }
+        }
+    }
+
     @Override
     public void uploadFile(Path localSource, Path remotePath) {
         log.info("Starting upload: {} --> {}", localSource, remotePath);
 
         try (SSHClient ssh = createConnectedClient(); SFTPClient sftp = ssh.newSFTPClient()) {
 
-            String remoteDir = remotePath.getParent().toString().replace("\\", "/");
+            String remoteDirectory = remotePath.getParent().toString().replace("\\", "/");
 
-            try {
-                sftp.stat(remoteDir);
-            } catch (IOException e) {
-                log.info("remote directory doesn't exists. Creating a new one: {}", remoteDir);
-                sftp.mkdir(remoteDir);
-            }
+            ensureRemoteDirectories(sftp, remoteDirectory);
 
             sftp.put(localSource.toString(), remotePath.toString());
-            log.info("upload successful");
+
+            log.info("upload successful {}", remotePath.getFileName());
+
         } catch (IOException e) {
             log.error("Error during SFTP uploading: {}", e.getMessage());
         }
@@ -118,22 +131,6 @@ public class SftpStorageService implements StorageService {
         }
     }
 
-    private void recursiveScan(SFTPClient sftp, String currentPath, List<SaveState> foundSaves) throws IOException {
-        List<RemoteResourceInfo> contents = sftp.ls(currentPath);
-
-        for (RemoteResourceInfo item : contents) {
-            String fullPath = currentPath.endsWith("/") ? currentPath + item.getName() : currentPath + "/" + item.getName();
-
-            if (item.isDirectory()) {
-                if (!item.getName().equals(".") && !item.getName().equals("..")) {
-                    recursiveScan(sftp, fullPath, foundSaves);
-                }
-            } else if (isSaveFile(item.getName())) {
-                foundSaves.add(mapToSaveState(item, currentPath));
-            }
-        }
-    }
-
     private SaveState mapToSaveState(RemoteResourceInfo file, String path) {
         long lastModifiedEpoch = file.getAttributes().getMtime();
         LocalDateTime lastModified = LocalDateTime.ofInstant(
@@ -147,5 +144,24 @@ public class SftpStorageService implements StorageService {
                 .absolutePath(path + "/" + file.getName())
                 .lastModified(lastModified)
                 .build();
+    }
+
+    private void ensureRemoteDirectories(SFTPClient sftpClient, String directoryPath) throws IOException {
+        String[] folders = directoryPath.split("/");
+        StringBuilder currentPath = new StringBuilder();
+
+        for (String folder : folders) {
+            if (folder.isEmpty()) continue;
+
+            currentPath.append(folder).append("/");
+            String pathToCheck = currentPath.toString();
+
+            try {
+                sftpClient.stat(pathToCheck);
+            } catch (IOException e) {
+                log.info("Creating missing remote directory: {}", pathToCheck);
+                sftpClient.mkdir(pathToCheck);
+            }
+        }
     }
 }
