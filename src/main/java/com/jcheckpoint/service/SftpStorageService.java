@@ -53,11 +53,6 @@ public class SftpStorageService implements StorageService {
         return ssh;
     }
 
-    private boolean isSaveFile(String name) {
-        String lowerName = name.toLowerCase();
-        return validExtensions.stream().anyMatch(lowerName::endsWith);
-    }
-
     @Override
     public List<SaveState> listAllSaves(Path path) {
         List<SaveState> saves = new ArrayList<>();
@@ -87,6 +82,26 @@ public class SftpStorageService implements StorageService {
                 foundSaves.add(mapToSaveState(item, currentPath));
             }
         }
+    }
+
+    private boolean isSaveFile(String name) {
+        String lowerName = name.toLowerCase();
+        return validExtensions.stream().anyMatch(lowerName::endsWith);
+    }
+
+    private SaveState mapToSaveState(RemoteResourceInfo file, String path) {
+        long lastModifiedEpoch = file.getAttributes().getMtime();
+        LocalDateTime lastModified = LocalDateTime.ofInstant(
+                Instant.ofEpochSecond(lastModifiedEpoch),
+                ZoneId.systemDefault()
+        );
+
+        return SaveState.builder()
+                .fileName(file.getName())
+                .sizeInBytes(file.getAttributes().getSize())
+                .absolutePath(path + "/" + file.getName())
+                .lastModified(lastModified)
+                .build();
     }
 
     @Override
@@ -129,21 +144,6 @@ public class SftpStorageService implements StorageService {
         } catch (IOException e) {
             log.error("Error during SFTP downloading: {}", e.getMessage());
         }
-    }
-
-    private SaveState mapToSaveState(RemoteResourceInfo file, String path) {
-        long lastModifiedEpoch = file.getAttributes().getMtime();
-        LocalDateTime lastModified = LocalDateTime.ofInstant(
-                Instant.ofEpochSecond(lastModifiedEpoch),
-                ZoneId.systemDefault()
-        );
-
-        return SaveState.builder()
-                .fileName(file.getName())
-                .sizeInBytes(file.getAttributes().getSize())
-                .absolutePath(path + "/" + file.getName())
-                .lastModified(lastModified)
-                .build();
     }
 
     private void ensureRemoteDirectories(SFTPClient sftpClient, String directoryPath) throws IOException {

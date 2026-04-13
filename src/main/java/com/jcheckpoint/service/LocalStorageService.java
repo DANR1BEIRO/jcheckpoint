@@ -35,7 +35,7 @@ public class LocalStorageService implements StorageService {
             throw new SaveSyncException("Directory does not exist or is inaccessible: " + path);
         }
 
-        try (Stream<Path> stream = Files.list(path)) {
+        try (Stream<Path> stream = Files.walk(path)) {
             return stream
                     .filter(p -> Files.isRegularFile(p)) // only files, ignore folders
                     .filter(this::isSaveFile)
@@ -53,14 +53,6 @@ public class LocalStorageService implements StorageService {
 
     private SaveState mapToSaveState(Path path) {
         try {
-            /**
-             * readAttributes asks for two parameters:
-             * 1. path: The object rerpesenting the files location on the HD.
-             * In this case, the `path` comes from the Stream that iterates through the saves folder.
-             *
-             * 2. "lastModifiedTime,size": A String parameter list containing the exact attributes names we need to,
-             * separated by comma.
-             */
             Map<String, Object> fileAttributes = Files.readAttributes(path, "lastModifiedTime,size");
 
             long size = (long) fileAttributes.get("size");

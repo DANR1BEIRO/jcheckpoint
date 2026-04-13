@@ -30,7 +30,7 @@ public class SaveSyncScheduler {
     @Value("${app.trimui.save-path}")
     private String externalPath;
 
-    @Scheduled(fixedDelay = 3000)
+    @Scheduled(fixedDelay = 30000)
     public void runSyncTask() {
 
         Path localDirectory = Paths.get(localPath);
